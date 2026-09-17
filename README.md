@@ -8,19 +8,20 @@
 
 > 🚀 **Live Demo Available:** Test and play this project live right now: **[https://olamideakinade.github.io/disk-fault-sim/](https://olamideakinade.github.io/disk-fault-sim/)**
 
-Disk Fault Simulation Workbench is a browser-based visualization and failure testing tool designed to model block allocation, inode distribution, filesystem fragmentation, and simulated sector corruption. It runs entirely client-side using Vanilla JavaScript, HTML5 Canvas, and modern CSS.
+## Overview
 
-## Key Capabilities
+Disk Fault Simulation Workbench is an interactive HTML5/JavaScript retro-style terminal simulation that models low-level block allocation, disk fragmentation, bad sector corruption, data recovery, and file pinning operations.
 
-- **Block Map Visualization**: Real-time canvas rendering of disk blocks tracking free, allocated, corrupted, and pinned states.
-- **Filesystem Operations**: Simulate sequential writes, random allocations, file deletions, and defragmentation passes.
-- **Fault Injection Engine**: Inject bad sectors, unreadable blocks, or simulated drive drops to observe integrity recovery mechanisms.
-- **State Persistence**: Save disk layouts and simulation histories to `localStorage` for comparative runs.
-- **Zero Dependencies**: Pure vanilla stack without heavy frontend frameworks or build steps.
+## Features (v1.1.0)
 
-## Quickstart
+- **Visual Block Matrix**: Real-time canvas rendering of 1,024 disk blocks (32x32) with distinct color coding for Free, Allocated, Corrupted, and Pinned states.
+- **Fault Injection & Recovery**: Simulate sector degradation, sector healing, file allocation, and defragmentation.
+- **Diagnostics & Snapshots**: Export full disk states to JSON or restore saved configurations instantly.
+- **Keyboard Shortcuts**: Fast testing shortcuts (Space: Self-Test, C: Inject Fault, R: Defrag, Shift+R: Reset).
 
-Clone the repository and serve the static files using any local web server:
+## Getting Started
+
+Clone the repository and serve via any static web server:
 
 ```bash
 git clone https://github.com/Olamideakinade/disk-fault-sim.git
@@ -28,16 +29,6 @@ cd disk-fault-sim
 python3 -m http.server 8080
 ```
 
-Navigate to `http://localhost:8080` in your browser.
-
-## Architecture & Design
-
-The application is structured into decoupled modules:
-
-- `index.html`: Layout container featuring control panels, metrics readouts, and canvas viewports.
-- `style.css`: Linear-inspired dark UI theme utilizing CSS variables and grid/flexbox layouts.
-- `app.js`: Core simulation loop, block state management, rendering pipeline, and event handling.
-
 ## License
 
-MIT
+MIT License. See [LICENSE](LICENSE) for details.

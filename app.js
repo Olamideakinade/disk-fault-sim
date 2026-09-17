@@ -17,194 +17,222 @@ const elTotal = document.getElementById('metric-total');
 const elUsed = document.getElementById('metric-used');
 const elBad = document.getElementById('metric-bad');
 const elFrag = document.getElementById('metric-frag');
-const elHover = document.getElementById('hover-info');
-const elLog = document.getElementById('log-output');
+const elHover = document.getElementById('metric-hover');
+const elLog = document.getElementById('event-log');
 const elFsStatus = document.getElementById('fs-status');
+
+let hoveredBlock = null;
+
+function logEvent(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${type}`;
+    entry.textContent = `[${timestamp}] ${message}`;
+    elLog.prepend(entry);
+    
+    while (elLog.children.length > 100) {
+        elLog.removeChild(elLog.lastChild);
+    }
+}
 
 function initDisk() {
     disk.fill(STATE_FREE);
-    // Pin metadata blocks (Inode table & superblock)
-    for (let i = 0; i < 32; i++) {
-        disk[i] = STATE_PINNED;
+    // Allocate some initial sample data
+    for (let i = 0; i < TOTAL_BLOCKS * 0.35; i++) {
+        const idx = Math.floor(Math.random() * TOTAL_BLOCKS);
+        disk[idx] = STATE_ALLOCATED;
     }
-    logMessage('Filesystem initialized. Superblock and Inodes pinned.', 'info');
+    // Pin a few blocks
+    for (let i = 0; i < 15; i++) {
+        const idx = Math.floor(Math.random() * TOTAL_BLOCKS);
+        if (disk[idx] === STATE_ALLOCATED) {
+            disk[idx] = STATE_PINNED;
+        }
+    }
+    logEvent('Filesystem initialized. 1024 blocks allocated.', 'success');
     updateMetrics();
-    render();
+    drawDisk();
 }
 
-function logMessage(msg, type = 'info') {
-    const time = new Date().toTimeString().split(' ')[0];
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.innerHTML = `<span class="log-time">[${time}]</span><span class="log-msg ${type}">${msg}</span>`;
-    elLog.appendChild(entry);
-    elLog.scrollTop = elLog.scrollHeight;
+function drawDisk() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+            const idx = y * GRID_SIZE + x;
+            const state = disk[idx];
+            
+            let color = '#1e222d'; // FREE
+            if (state === STATE_ALLOCATED) color = '#3b82f6';
+            else if (state === STATE_CORRUPTED) color = '#ef4444';
+            else if (state === STATE_PINNED) color = '#8b5cf6';
+            
+            ctx.fillStyle = color;
+            ctx.fillRect(x * (BLOCK_SIZE + PADDING), y * (BLOCK_SIZE + PADDING), BLOCK_SIZE, BLOCK_SIZE);
+            
+            if (hoveredBlock === idx) {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x * (BLOCK_SIZE + PADDING) - 1, y * (BLOCK_SIZE + PADDING) - 1, BLOCK_SIZE + 2, BLOCK_SIZE + 2);
+            }
+        }
+    }
 }
 
 function updateMetrics() {
     let used = 0;
     let bad = 0;
-    let freeContiguousChanges = 0;
-    let lastState = STATE_FREE;
-
+    let free = 0;
+    let pinned = 0;
+    
     for (let i = 0; i < TOTAL_BLOCKS; i++) {
         if (disk[i] === STATE_ALLOCATED) used++;
-        if (disk[i] === STATE_CORRUPTED) bad++;
-        if (disk[i] !== lastState && disk[i] !== STATE_PINNED) {
-            freeContiguousChanges++;
-        }
-        lastState = disk[i];
+        else if (disk[i] === STATE_CORRUPTED) bad++;
+        else if (disk[i] === STATE_PINNED) pinned++;
+        else if (disk[i] === STATE_FREE) free++;
     }
-
-    const totalKb = TOTAL_BLOCKS;
-    const usedKb = used;
-    const fragRate = used > 0 ? Math.min(100, (freeContiguousChanges / used) * 45).toFixed(1) : '0.0';
-
-    elTotal.textContent = `${totalKb} KB`;
-    elUsed.textContent = `${usedKb} KB`;
+    
+    const totalUsed = used + pinned;
+    const usedPercent = ((totalUsed / TOTAL_BLOCKS) * 100).toFixed(1);
+    
+    elTotal.textContent = TOTAL_BLOCKS;
+    elUsed.textContent = `${totalUsed} (${usedPercent}%)`;
     elBad.textContent = bad;
-    elFrag.textContent = `${fragRate}%`;
-
+    
+    // Simple fragmentation metric calculation
+    let transitions = 0;
+    for (let i = 0; i < TOTAL_BLOCKS - 1; i++) {
+        if (disk[i] !== disk[i + 1]) transitions++;
+    }
+    const fragPercent = Math.min(100, ((transitions / TOTAL_BLOCKS) * 100).toFixed(1));
+    elFrag.textContent = `${fragPercent}%`;
+    
     if (bad > 0) {
         elFsStatus.textContent = `Filesystem: Degraded (${bad} bad sectors)`;
-        elFsStatus.className = 'badge error';
+        elFsStatus.className = 'badge danger';
     } else {
         elFsStatus.textContent = 'Filesystem: Healthy';
         elFsStatus.className = 'badge ok';
     }
 }
 
-function render() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (let y = 0; y < GRID_SIZE; y++) {
-        for (let x = 0; x < GRID_SIZE; x++) {
-            const idx = y * GRID_SIZE + x;
-            const state = disk[idx];
-
-            switch (state) {
-                case STATE_FREE:
-                    ctx.fillStyle = '#1e222d';
-                    break;
-                case STATE_ALLOCATED:
-                    ctx.fillStyle = '#3b82f6';
-                    break;
-                case STATE_CORRUPTED:
-                    ctx.fillStyle = '#ef4444';
-                    break;
-                case STATE_PINNED:
-                    ctx.fillStyle = '#8b5cf6';
-                    break;
-            }
-
-            ctx.fillRect(
-                x * (BLOCK_SIZE + PADDING) + PADDING,
-                y * (BLOCK_SIZE + PADDING) + PADDING,
-                BLOCK_SIZE,
-                BLOCK_SIZE
-            );
-        }
-    }
-}
-
-function allocateFile() {
-    const size = 16;
+function allocateBlock() {
     let allocatedCount = 0;
-    let startBlock = -1;
-
-    for (let i = 0; i < TOTAL_BLOCKS; i++) {
-        if (disk[i] === STATE_FREE) {
-            if (startBlock === -1) startBlock = i;
-            disk[i] = STATE_ALLOCATED;
+    for (let i = 0; i < 32; i++) {
+        const idx = Math.floor(Math.random() * TOTAL_BLOCKS);
+        if (disk[idx] === STATE_FREE) {
+            disk[idx] = STATE_ALLOCATED;
             allocatedCount++;
-            if (allocatedCount === size) break;
         }
     }
-
-    if (allocatedCount < size) {
-        logMessage(`ENOSPC: Failed to allocate ${size} blocks. Disk full.`, 'error');
-    } else {
-        logMessage(`Allocated file of ${size} blocks starting at offset 0x${startBlock.toString(16)}`, 'success');
-    }
-
+    logEvent(`Allocated ${allocatedCount} new blocks.`, 'info');
     updateMetrics();
-    render();
+    drawDisk();
 }
 
-function simulateFragmentation() {
-    let modified = 0;
-    for (let i = 32; i < TOTAL_BLOCKS; i += 3) {
-        if (disk[i] === STATE_ALLOCATED) {
-            disk[i] = STATE_FREE;
-            modified++;
+function injectFault() {
+    let corruptedCount = 0;
+    for (let i = 0; i < 8; i++) {
+        const idx = Math.floor(Math.random() * TOTAL_BLOCKS);
+        if (disk[idx] !== STATE_PINNED) {
+            disk[idx] = STATE_CORRUPTED;
+            corruptedCount++;
         }
     }
-    logMessage(`Fragmented filesystem: freed ${modified} alternating blocks.`, 'warn');
+    logEvent(`Injected faults: ${corruptedCount} sectors corrupted.`, 'warning');
     updateMetrics();
-    render();
+    drawDisk();
 }
 
-function injectCorruption() {
-    const target = Math.floor(Math.random() * (TOTAL_BLOCKS - 32)) + 32;
-    if (disk[target] !== STATE_PINNED) {
-        disk[target] = STATE_CORRUPTED;
-        logMessage(`Hardware warning: Sector 0x${target.toString(16)} unreadable / corrupted.`, 'error');
-        updateMetrics();
-        render();
-    }
+function runSelfTest() {
+    logEvent('Running file system consistency check (fsck)...', 'info');
+    setTimeout(() => {
+        let badFound = 0;
+        for (let i = 0; i < TOTAL_BLOCKS; i++) {
+            if (disk[i] === STATE_CORRUPTED) badFound++;
+        }
+        logEvent(`fsck complete. Found ${badFound} corrupted sectors requiring repair.`, badFound > 0 ? 'warning' : 'success');
+    }, 400);
 }
 
-function runDefrag() {
-    let writePtr = 32;
-    let movedCount = 0;
-
-    for (let i = 32; i < TOTAL_BLOCKS; i++) {
+function defragDisk() {
+    logEvent('Starting disk defragmentation...', 'info');
+    let writeHead = 0;
+    for (let i = 0; i < TOTAL_BLOCKS; i++) {
         if (disk[i] === STATE_ALLOCATED) {
-            if (i !== writePtr) {
-                disk[writePtr] = STATE_ALLOCATED;
+            if (i !== writeHead) {
+                disk[writeHead] = STATE_ALLOCATED;
                 disk[i] = STATE_FREE;
-                movedCount++;
             }
-            writePtr++;
-        } else if (disk[i] === STATE_CORRUPTED) {
-            // Skip bad sectors during defrag relocation
-            writePtr = Math.max(writePtr, i + 1);
+            writeHead++;
+        } else if (disk[i] === STATE_PINNED) {
+            writeHead = i + 1;
         }
     }
-
-    logMessage(`Defragmentation complete. Relocated ${movedCount} blocks.`, 'success');
+    logEvent('Defragmentation completed successfully.', 'success');
     updateMetrics();
-    render();
+    drawDisk();
+}
+
+function resetDisk() {
+    initDisk();
+    logEvent('Disk storage formatted and reset.', 'warning');
+}
+
+function exportSnapshot() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Array.from(disk)));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", "disk_snapshot.json");
+    dlAnchorElem.click();
+    logEvent('Disk snapshot exported to JSON.', 'success');
 }
 
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const x = Math.floor(mouseX / (BLOCK_SIZE + PADDING));
-    const y = Math.floor(mouseY / (BLOCK_SIZE + PADDING));
-
+    const x = Math.floor((e.clientX - rect.left) / (BLOCK_SIZE + PADDING));
+    const y = Math.floor((e.clientY - rect.top) / (BLOCK_SIZE + PADDING));
+    
     if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
         const idx = y * GRID_SIZE + x;
-        const state = disk[idx];
-        let stateStr = 'Free';
-        if (state === STATE_ALLOCATED) stateStr = 'Allocated';
-        if (state === STATE_CORRUPTED) stateStr = 'Corrupted';
-        if (state === STATE_PINNED) stateStr = 'Pinned (Metadata)';
-
-        elHover.textContent = `Block 0x${idx.toString(16).padStart(3, '0')} [${stateStr}]`;
+        hoveredBlock = idx;
+        const stateStr = ['Free', 'Allocated', 'Corrupted', 'Pinned'][disk[idx]];
+        elHover.textContent = `Block #${idx} (${x}, ${y}): ${stateStr}`;
+    } else {
+        hoveredBlock = null;
+        elHover.textContent = 'None';
     }
+    drawDisk();
 });
 
 canvas.addEventListener('mouseleave', () => {
-    elHover.textContent = 'Hover over block for details';
+    hoveredBlock = null;
+    elHover.textContent = 'None';
+    drawDisk();
 });
 
-document.getElementById('btn-allocate').addEventListener('click', allocateFile);
-document.getElementById('btn-fragment').addEventListener('click', simulateFragmentation);
-document.getElementById('btn-corrupt').addEventListener('click', injectCorruption);
-document.getElementById('btn-defrag').addEventListener('click', runDefrag);
-document.getElementById('btn-reset').addEventListener('click', initDisk);
+window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    if (e.code === 'Space') {
+        e.preventDefault();
+        runSelfTest();
+    } else if (e.code === 'KeyC') {
+        injectFault();
+    } else if (e.code === 'KeyR' && e.shiftKey) {
+        resetDisk();
+    } else if (e.code === 'KeyR') {
+        defragDisk();
+    } else if (e.code === 'KeyA') {
+        allocateBlock();
+    }
+});
+
+document.getElementById('btn-allocate').addEventListener('click', allocateBlock);
+document.getElementById('btn-fault').addEventListener('click', injectFault);
+document.getElementById('btn-test').addEventListener('click', runSelfTest);
+document.getElementById('btn-defrag').addEventListener('click', defragDisk);
+document.getElementById('btn-reset').addEventListener('click', resetDisk);
+document.getElementById('btn-export').addEventListener('click', exportSnapshot);
 
 initDisk();
