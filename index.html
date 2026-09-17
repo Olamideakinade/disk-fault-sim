@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disk Fault Simulation Workbench</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="brand">
+            <span class="brand-icon">&#9638;</span>
+            <h1>Disk Fault Simulation Workbench</h1>
+        </div>
+        <div class="status-bar">
+            <span id="fs-status" class="badge ok">Filesystem: Healthy</span>
+        </div>
+    </header>
+
+    <main class="workbench">
+        <section class="control-panel">
+            <h2>Operations</h2>
+            <div class="button-group">
+                <button id="btn-allocate" class="btn primary">Write File (16 Blocks)</button>
+                <button id="btn-fragment" class="btn secondary">Simulate Fragmentation</button>
+                <button id="btn-corrupt" class="btn danger">Inject Bad Sector</button>
+                <button id="btn-defrag" class="btn">Run Defrag</button>
+                <button id="btn-reset" class="btn outline">Reset Disk</button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Total Capacity</span>
+                    <span id="metric-total" class="metric-value">1024 KB</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Used Space</span>
+                    <span id="metric-used" class="metric-value">0 KB</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Bad Sectors</span>
+                    <span id="metric-bad" class="metric-value">0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Fragmentation</span>
+                    <span id="metric-frag" class="metric-value">0.0%</span>
+                </div>
+            </div>
+
+            <div class="legend">
+                <h3>Block Legend</h3>
+                <ul>
+                    <li><span class="legend-box free"></span> Free</li>
+                    <li><span class="legend-box allocated"></span> Allocated</li>
+                    <li><span class="legend-box corrupted"></span> Corrupted</li>
+                    <li><span class="legend-box pinned"></span> Pinned (Metadata)</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="visualization-panel">
+            <div class="viewport-header">
+                <h2>Block Allocation Map (32x32 Grid)</h2>
+                <span id="hover-info" class="hover-info">Hover over block for details</span>
+            </div>
+            <div class="canvas-container">
+                <canvas id="disk-canvas" width="640" height="640"></canvas>
+            </div>
+            <div class="terminal-log">
+                <div class="log-header">Kernel I/O Log</div>
+                <div id="log-output" class="log-output"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
