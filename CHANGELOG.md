@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v1.0.0/).
 
+## [v1.2.0] - 2025-02-25
+
+### Added
+- Built-in automated test suite covering unit tests for disk allocation and fault injection.
+- Performance benchmarking module to measure operations per second and render latency.
+- Test runner UI panel with clean status reporting.
+
+### Changed
+- Refactored core disk engine methods into pure testable functions.
+- Updated header status indicators and metrics layout.
+
 ## [v1.1.0] - 2025-02-18
 
 ### Added
@@ -13,8 +24,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Detailed fragmentation and health score metrics.
 
 ### Changed
-- Optimized canvas rendering loop for smoother 60FPS block updates.
-- Refactored state management to prevent memory leaks during rapid simulations.
-
-### Fixed
-- Edge cases in sector recovery algorithms where pinned blocks were incorrectly targeted.
+- Optimized canvas rendering loop.
